@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "puant"
+version = "0.1.0"
+description = "Day-ahead forecasts for the Turkish electricity market: price, demand, wind and solar, with explanations, scenarios and their value in money."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Emir Tunali" }]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "pyarrow>=14",
+    "requests>=2.31",
+    "holidays>=0.50",
+]
+
+[project.optional-dependencies]
+model = ["scikit-learn>=1.4", "scipy>=1.10"]
+osm = ["osmium>=4.0"]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: needs internet and EPİAŞ credentials"]
+addopts = "-m 'not network'"

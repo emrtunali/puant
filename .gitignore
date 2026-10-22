@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+# credentials and raw data never go into git
+.env
+data/raw/
+data/cache/
+# assistant tooling
+CLAUDE.md
+.claude/
+data/backtest.parquet
