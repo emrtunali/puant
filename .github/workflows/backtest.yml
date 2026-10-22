@@ -20,7 +20,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install ".[model]"
+      # editable: the code finds data/ and site/ relative to the checkout
+      - run: pip install -e ".[model]"
       - uses: actions/cache/restore@v4
         with:
           path: data/raw
