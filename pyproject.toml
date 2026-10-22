@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,19 +8,16 @@ version = "0.1.0"
 description = "Day-ahead forecasts for the Turkish electricity market: price, demand, wind and solar, with explanations, scenarios and their value in money."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Emir Tunali" }]
 keywords = ["electricity price forecasting", "probabilistic forecasting", "quantile regression",
             "turkey", "epias", "energy", "shapley", "battery arbitrage", "carbon intensity"]
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering",
 ]
 
-[project.urls]
-Dashboard = "https://emrtunali.github.io/puant/"
-Source = "https://github.com/emrtunali/puant"
 dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
@@ -28,6 +25,10 @@ dependencies = [
     "requests>=2.31",
     "holidays>=0.50",
 ]
+
+[project.urls]
+Dashboard = "https://emrtunali.github.io/puant/"
+Source = "https://github.com/emrtunali/puant"
 
 [project.optional-dependencies]
 model = ["scikit-learn>=1.4", "scipy>=1.10"]
