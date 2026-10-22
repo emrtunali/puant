@@ -110,7 +110,8 @@ def backtest(
             # bands are calibrated on the raw forecasts of the last 90 days
             past = pd.concat(raw[t]).iloc[-90 * H :].dropna() if raw[t] else None
             raw[t].append(p)
-            rows.append(calibrate(p, past).assign(target=t))
+            # raw bands are kept so the live forecast can calibrate on them too
+            rows.append(calibrate(p, past).assign(target=t, q10_raw=p["q10"], q90_raw=p["q90"]))
         log(f"  backtest {mstart.date()}: {sel.sum()} hours")
     out = pd.concat(rows)
     out.index.name = "time"
@@ -154,4 +155,6 @@ def baselines(m: pd.DataFrame, f: pd.DataFrame, target: str) -> dict[str, pd.Ser
             "EPİAŞ wind forecast": m["wind_fc_official"],
             "same hour 2 days ago": m["wind_gen"].shift(2 * H),
         }
+    if target == "carbon":
+        return {"same hour last week": m["carbon"].shift(7 * H)}
     return {"same hour last week": m["sun_gen"].shift(7 * H)}

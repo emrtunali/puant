@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from . import calendar as cal
+from .carbon import intensity
 
 H = 24
 WEATHER = ["temp", "hdd", "cdd", "cloud", "wind_speed", "wind_index", "solar_ghi"]
@@ -37,11 +38,13 @@ def master(raw: dict[str, pd.DataFrame], weather: pd.DataFrame) -> pd.DataFrame:
     m["river_gen"] = g.get("river")
     m["gas_gen"] = g.get("naturalGas")
     m["total_gen"] = g.get("total")
+    m["carbon"] = intensity(g)  # g CO2 per kWh generated
     w = raw["wind"].resample("h").mean().reindex(idx)  # stored at 10-minute resolution
     m["wind_fc_official"] = w.get("forecast")
     gas = raw["gas"]["grfTl"]
     gas_day = pd.Series(gas.to_numpy(), index=pd.Index(gas.index.date))
-    m["gas_price"] = pd.Series(idx.date, index=idx).map(gas_day).astype(float)
+    # no reference price on some days: carry the last one forward (up to a week)
+    m["gas_price"] = pd.Series(idx.date, index=idx).map(gas_day).astype(float).ffill(limit=7 * H)
     wx = weather.reindex(idx)
     for c in WEATHER:
         m[c] = wx[c]
@@ -91,6 +94,8 @@ def build(m: pd.DataFrame, holidays: pd.DataFrame) -> pd.DataFrame:
     f["solar_k"] = _yield(m["sun_gen"], m["solar_ghi"], 14)
     f["wind_k"] = _yield(m["wind_gen"], m["wind_index"], 30)
     f["wind_fc_ratio"] = m["wind_fc_official"] / f["wind_k"]
+    f["carbon_d2"] = _shift_days(m["carbon"], 2)
+    f["carbon_d7"] = _shift_days(m["carbon"], 7)
     return f
 
 
@@ -106,9 +111,11 @@ TARGETS = {
     "consumption": lambda m, f: m["consumption"],
     "wind": lambda m, f: m["wind_gen"] / f["wind_k"],
     "solar": lambda m, f: m["sun_gen"] / f["solar_k"],
+    "carbon": lambda m, f: m["carbon"],
 }
 SCALE = {"price": "ref", "wind": "wind_k", "solar": "solar_k"}  # multiply a forecast back
-ACTUAL = {"price": "price", "consumption": "consumption", "wind": "wind_gen", "solar": "sun_gen"}
+ACTUAL = {"price": "price", "consumption": "consumption", "wind": "wind_gen", "solar": "sun_gen",
+          "carbon": "carbon"}  # fmt: skip
 
 # features each model may use (the price model sees everything)
 COLUMNS = {
@@ -146,6 +153,29 @@ COLUMNS = {
         "wind_fc_ratio",
     ],
     "solar": ["hour", "month", "doy_sin", "doy_cos", "solar_ghi", "cloud", "temp"],
+    # the mix: what is left for coal and gas after demand, wind, sun and water
+    "carbon": [
+        "hour",
+        "dow",
+        "month",
+        "doy_sin",
+        "doy_cos",
+        "holiday",
+        "religious",
+        "lep",
+        "wind_fc_ratio",
+        "wind_index",
+        "solar_ghi",
+        "cloud",
+        "residual_load",
+        "hydro_week",
+        "river_week",
+        "gas_price",
+        "carbon_d2",
+        "carbon_d7",
+        "price_d1",
+        "temp",
+    ],
 }
 
 

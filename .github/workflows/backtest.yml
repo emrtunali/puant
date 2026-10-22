@@ -1,0 +1,42 @@
+name: backtest
+
+# Once a month, rerun the honest backtest so the scoreboard and the band calibration include
+# the month that just ended. The daily job picks up the new files.
+on:
+  schedule:
+    - cron: "0 1 2 * *" # 04:00 Turkish time on the 2nd
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install ".[model]"
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+      - name: Backtest
+        env:
+          EPIAS_USERNAME: ${{ secrets.EPIAS_USERNAME }}
+          EPIAS_PASSWORD: ${{ secrets.EPIAS_PASSWORD }}
+        run: |
+          python -m puant.data --weather
+          python -m puant.backtest --start 2024-07-01
+      - name: Commit results
+        run: |
+          git config user.name "puant-bot"
+          git config user.email "puant-bot@users.noreply.github.com"
+          git add data/backtest.parquet data/scoreboard.json
+          git diff --cached --quiet || git commit -m "Monthly backtest $(date +%Y-%m)"
+          git push

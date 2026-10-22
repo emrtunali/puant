@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Puant</title>
+  <meta name="description" content="Türkiye elektrik piyasası için gün öncesi olasılıksal tahminler: fiyat, tüketim, rüzgâr, güneş ve karbon; nedenleriyle birlikte.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M18 2 6 18h8l-2 12 12-16h-8z' fill='%232a78d6'/></svg>">
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">Puant <span>· gün öncesi elektrik tahmini</span></div>
+    <nav>
+      <a href="#neden">Neden?</a>
+      <a href="#senaryo">Senaryo</a>
+      <a href="#piyasa">Piyasa</a>
+      <a href="#saatler">Saatler</a>
+      <a href="#batarya">Batarya</a>
+      <a href="#karne">Karne</a>
+      <button class="theme" id="theme" type="button">Tema</button>
+    </nav>
+  </header>
+
+  <h1 id="title">Yarın elektrik ne kadar?</h1>
+  <p class="lede" id="lede">Yükleniyor…</p>
+
+  <div class="hero" id="hero"></div>
+
+  <div class="card">
+    <h2>Saatlik piyasa takas fiyatı (PTF)</h2>
+    <div class="legend">
+      <span><i style="background:var(--s1)"></i>Puant tahmini</span>
+      <span><i class="band"></i>%80 aralık</span>
+      <span><i class="dash"></i>Bugünün fiyatı</span>
+    </div>
+    <div class="chart" id="c-price"></div>
+  </div>
+
+  <section id="neden">
+    <h2>Yarın neden bu fiyat?</h2>
+    <p class="sub" id="explain-sub"></p>
+    <div class="card">
+      <div class="chart" id="c-explain"></div>
+    </div>
+  </section>
+
+  <section id="senaryo">
+    <h2>Ya hava farklı olsaydı?</h2>
+    <p class="sub">Fiyat modelini değiştirilmiş hava ve gaz fiyatıyla yeniden çalıştırır. Sıcaklık değişimi, tüketim modelinin beklediği talep değişimini de taşır.</p>
+    <div class="card">
+      <div class="controls">
+        <label>Sıcaklık <output id="o-temp">0 °C</output><input id="s-temp" type="range" min="0" max="4" step="1" value="2"></label>
+        <label>Rüzgâr <output id="o-wind">tahmin kadar</output><input id="s-wind" type="range" min="0" max="4" step="1" value="2"></label>
+        <label>Doğalgaz fiyatı <output id="o-gas">aynı</output><input id="s-gas" type="range" min="0" max="2" step="1" value="1"></label>
+      </div>
+      <div class="hero" id="scen-hero" style="margin:0 0 8px"></div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>Senaryo</span>
+        <span><i class="dash"></i>Temel tahmin</span>
+      </div>
+      <div class="chart" id="c-scen"></div>
+    </div>
+  </section>
+
+  <section id="piyasa">
+    <h2>Piyasa simülatörü</h2>
+    <p class="sub" id="market-sub"></p>
+    <div class="card">
+      <div class="controls">
+        <label>Arz kayması (ör. rüzgâr) <output id="o-sup">0 MW</output><input id="s-sup" type="range" min="-4000" max="4000" step="250" value="0"></label>
+        <label>Talep kayması (ör. sıcak hava) <output id="o-dem">0 MW</output><input id="s-dem" type="range" min="-4000" max="4000" step="250" value="0"></label>
+      </div>
+      <div class="hero" id="mkt-hero" style="margin:0 0 8px"></div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>Arz eğrisi</span>
+        <span><i style="background:var(--s2)"></i>Talep eğrisi</span>
+      </div>
+      <div class="chart" id="c-market"></div>
+    </div>
+  </section>
+
+  <section id="diger">
+    <h2>Yarının sistemi</h2>
+    <p class="sub">Tüketim, rüzgâr ve lisanslı güneş üretimi ile şebekenin karbon yoğunluğu; her biri resmî ya da basit bir kıyas tahminine karşı.</p>
+    <div class="grid2">
+      <div class="card"><h2 style="font-size:16px">Tüketim</h2><div class="legend" id="lg-consumption"></div><div class="chart" id="c-consumption"></div></div>
+      <div class="card"><h2 style="font-size:16px">Rüzgâr üretimi</h2><div class="legend" id="lg-wind"></div><div class="chart" id="c-wind"></div></div>
+      <div class="card"><h2 style="font-size:16px">Güneş üretimi (gerçek zamanlı ölçülen)</h2><div class="legend" id="lg-solar"></div><div class="chart" id="c-solar"></div></div>
+      <div class="card"><h2 style="font-size:16px">Karbon yoğunluğu</h2><div class="legend" id="lg-carbon"></div><div class="chart" id="c-carbon"></div></div>
+    </div>
+  </section>
+
+  <section id="saatler">
+    <h2>En ucuz ve en temiz saatler</h2>
+    <p class="sub">Çamaşır, bulaşık, elektrikli araç şarjı ya da sanayi yükü için: koyu hücre daha pahalı ya da daha kirli demek.</p>
+    <div class="card">
+      <div class="hours" id="hours"></div>
+      <div class="chips" id="hour-chips"></div>
+    </div>
+  </section>
+
+  <section id="batarya">
+    <h2>Bu tahminle bir batarya ne kazanırdı?</h2>
+    <p class="sub" id="bat-sub"></p>
+    <div class="grid2">
+      <div class="card">
+        <h2 style="font-size:16px">Yarının planı</h2>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Şarj (alış)</span><span><i style="background:var(--s2)"></i>Deşarj (satış)</span></div>
+        <div class="chart" id="c-batplan"></div>
+      </div>
+      <div class="card">
+        <h2 style="font-size:16px">Geriye dönük toplam kazanç</h2>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i>Puant tahminiyle</span>
+          <span><i style="background:var(--s2)"></i>Kusursuz öngörü</span>
+          <span><i style="background:var(--s3)"></i>Sabit kural</span>
+        </div>
+        <div class="chart" id="c-batcum"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="karne">
+    <h2>Karne: dürüst geriye dönük test</h2>
+    <p class="sub">Model her ayın başında yalnızca o güne kadarki veriyle yeniden eğitildi ve her günü bir gün önce yayımlanmış hava tahminiyle tahmin etti; gerçek havayı hiç görmedi. Canlı tahminler her gün bu karneye eklenir.</p>
+    <div class="card tablewrap" id="score"></div>
+    <div class="card" style="margin-top:16px">
+      <div class="controls" style="grid-template-columns:1fr">
+        <label>Seri
+          <select id="hist-target" style="margin-left:8px;font:inherit">
+            <option value="price">Fiyat</option><option value="consumption">Tüketim</option>
+            <option value="wind">Rüzgâr</option><option value="solar">Güneş</option><option value="carbon">Karbon</option>
+          </select>
+        </label>
+      </div>
+      <h2 style="font-size:16px">Son 60 gün: tahmin ve gerçekleşen</h2>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Puant (medyan)</span><span><i class="band"></i>%80 aralık</span><span><i style="background:var(--s2)"></i>Gerçekleşen</span></div>
+      <div class="chart" id="c-hist"></div>
+      <h2 style="font-size:16px;margin-top:18px">Aylık ortalama mutlak hata</h2>
+      <div class="legend" id="lg-monthly"></div>
+      <div class="chart" id="c-monthly"></div>
+    </div>
+  </section>
+
+  <section id="yontem">
+    <h2>Yöntem ve sınırlar</h2>
+    <div class="card note">
+      <p><b>Veri.</b> EPİAŞ Şeffaflık Platformu (PTF, gerçek zamanlı tüketim ve üretim, TEİAŞ yük tahmin planı, resmî rüzgâr tahmini, doğalgaz referans fiyatı) ve Open-Meteo (geçmiş hava ile bir gün önce yapılmış hava tahminleri). Sıcaklık 26 ilin nüfusuyla; rüzgâr ve güneş OpenStreetMap'teki santrallerin kurulu gücüyle ağırlıklandırılır.</p>
+      <p><b>Model.</b> Her seri ve %10/%50/%90 dilimi için ayrı gradyan artırmalı ağaç. Fiyat, enflasyondan bağımsız olsun diye son 28 günün ortalamasına oranla; rüzgâr ve güneş, büyüyen kurulu güce uyum için son haftaların "hava başına üretim" verimiyle tahmin edilir. Aralıklar son 90 günün hatalarıyla kalibre edilir.</p>
+      <p><b>Açıklama.</b> Yarın ile "normal bir gün" (son 28 günün aynı saatleri) arasındaki fark, sürücü grupları arasında tam Shapley değerleriyle bölüştürülür; parçaların toplamı farka eşittir. Bu, modelin gözünden bir açıklamadır, nedensellik iddiası değildir.</p>
+      <p><b>Sınırlar.</b> Güneş serisi yalnızca gerçek zamanlı ölçülen lisanslı üretimdir; çatı ve lisanssız santraller tüketimin içinde görünür. Karbon yoğunluğu yalnızca yerli üretimin doğrudan baca emisyonudur. Piyasa simülatörü yayımlanmış toplam eğrileri kullanır, blok teklifler dahil değildir. Yatırım tavsiyesi değildir.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span id="made"></span> · Kaynak kodu ve yöntem: <a href="https://github.com/emrtunali/puant">github.com/emrtunali/puant</a>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
