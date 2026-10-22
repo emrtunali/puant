@@ -5,44 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Puant</title>
   <meta name="description" content="Türkiye elektrik piyasası için gün öncesi olasılıksal tahminler: fiyat, tüketim, rüzgâr, güneş ve karbon; nedenleriyle birlikte.">
+  <meta name="theme-color" content="#2a78d6">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Puant · Yarın elektrik ne kadar?">
+  <meta property="og:description" content="Türkiye elektrik piyasası için gün öncesi fiyat, tüketim, rüzgâr, güneş ve karbon tahmini; nedenleri, senaryolar ve piyasa simülatörüyle.">
+  <meta property="og:url" content="https://emrtunali.github.io/puant/">
+  <meta property="og:image" content="https://raw.githubusercontent.com/emrtunali/puant/main/docs/dashboard.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://emrtunali.github.io/puant/">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M18 2 6 18h8l-2 12 12-16h-8z' fill='%232a78d6'/></svg>">
 </head>
 <body>
-<main>
-  <header class="top">
+<header class="top"><div class="bar">
     <div class="brand">Puant <span>· gün öncesi elektrik tahmini</span></div>
     <nav>
+      <a href="#dun">Dün</a>
       <a href="#neden">Neden?</a>
       <a href="#senaryo">Senaryo</a>
       <a href="#piyasa">Piyasa</a>
       <a href="#saatler">Saatler</a>
       <a href="#batarya">Batarya</a>
       <a href="#karne">Karne</a>
-      <button class="theme" id="theme" type="button">Tema</button>
+      <button class="theme" id="theme" type="button" aria-label="Açık ya da koyu tema">Tema</button>
     </nav>
-  </header>
+  </div></header>
+<main>
 
   <h1 id="title">Yarın elektrik ne kadar?</h1>
   <p class="lede" id="lede">Yükleniyor…</p>
 
   <div class="hero" id="hero"></div>
 
+  <div class="kpis" id="kpis" aria-label="Yarın bir bakışta"></div>
+
   <div class="card">
-    <h2>Saatlik piyasa takas fiyatı (PTF)</h2>
-    <div class="legend">
-      <span><i style="background:var(--s1)"></i>Puant tahmini</span>
-      <span><i class="band"></i>%80 aralık</span>
-      <span><i class="dash"></i>Bugünün fiyatı</span>
+    <div class="cardhead">
+      <h2>Saatlik piyasa takas fiyatı (PTF)</h2>
+      <div class="seg" role="group" aria-label="Görünüm">
+        <button type="button" class="on" data-view="chart" data-for="price">Grafik</button>
+        <button type="button" data-view="table" data-for="price">Tablo</button>
+      </div>
     </div>
-    <div class="chart" id="c-price"></div>
+    <div data-pane="price-chart">
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>Puant tahmini</span>
+        <span><i class="band"></i>%80 aralık</span>
+        <span><i class="dash"></i>Bugünün fiyatı</span>
+      </div>
+      <div class="chart" id="c-price"></div>
+    </div>
+    <div class="tablewrap" data-pane="price-table" hidden><table id="t-price"></table></div>
   </div>
+
+  <section id="dun">
+    <h2>Dün ne dedik, ne oldu?</h2>
+    <p class="sub" id="dun-sub"></p>
+    <div class="card">
+      <div class="hero" id="dun-hero" style="margin:0 0 8px"></div>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Puant tahmini</span><span><i class="band"></i>%80 aralık</span><span><i style="background:var(--s2)"></i>Gerçekleşen</span></div>
+      <div class="chart" id="c-dun"></div>
+    </div>
+  </section>
 
   <section id="neden">
     <h2>Yarın neden bu fiyat?</h2>
     <p class="sub" id="explain-sub"></p>
     <div class="card">
-      <div class="chart" id="c-explain"></div>
+      <div class="cardhead">
+        <h2 style="font-size:16px" id="explain-title">Günlük ortalama</h2>
+        <div class="seg" role="group" aria-label="Görünüm">
+          <button type="button" class="on" data-view="daily" data-for="explain">Günlük</button>
+          <button type="button" data-view="hourly" data-for="explain">Saatlik</button>
+        </div>
+      </div>
+      <div data-pane="explain-daily"><div class="chart" id="c-explain"></div></div>
+      <div data-pane="explain-hourly" hidden>
+        <p class="note" style="margin:0 0 6px">Her saatin fiyatını normal güne göre yukarı (üstte) ya da aşağı (altta) iten sürücüler; siyah çizgi net fark.</p>
+        <div class="legend" id="lg-explain-h"></div>
+        <div class="chart" id="c-explain-h"></div>
+      </div>
     </div>
   </section>
 
@@ -56,11 +98,19 @@
         <label>Doğalgaz fiyatı <output id="o-gas">aynı</output><input id="s-gas" type="range" min="0" max="2" step="1" value="1"></label>
       </div>
       <div class="hero" id="scen-hero" style="margin:0 0 8px"></div>
-      <div class="legend">
-        <span><i style="background:var(--s1)"></i>Senaryo</span>
-        <span><i class="dash"></i>Temel tahmin</span>
+      <div class="scenwrap">
+        <div>
+          <div class="legend">
+            <span><i style="background:var(--s1)"></i>Senaryo</span>
+            <span><i class="dash"></i>Temel tahmin</span>
+          </div>
+          <div class="chart" id="c-scen"></div>
+        </div>
+        <div>
+          <div class="note" style="margin:6px 0 8px">Sıcaklık × rüzgâr: günlük ortalamanın temel tahminden farkı (TL). Bir hücreye tıklayın.</div>
+          <div class="scengrid" id="scen-grid"></div>
+        </div>
       </div>
-      <div class="chart" id="c-scen"></div>
     </div>
   </section>
 

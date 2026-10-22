@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use Puant, please cite it as below."
+title: "Puant: day-ahead probabilistic forecasts for the Turkish electricity market"
+authors:
+  - family-names: Tunali
+    given-names: Emir
+repository-code: "https://github.com/emrtunali/puant"
+url: "https://emrtunali.github.io/puant/"
+license: MIT
+keywords:
+  - electricity price forecasting
+  - probabilistic forecasting
+  - Turkey
+  - EPİAŞ
+  - energy markets
+  - Shapley values
+  - battery arbitrage

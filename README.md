@@ -1,5 +1,11 @@
 # Puant
 
+[![ci](https://github.com/emrtunali/puant/actions/workflows/ci.yml/badge.svg)](https://github.com/emrtunali/puant/actions/workflows/ci.yml)
+[![daily forecast](https://github.com/emrtunali/puant/actions/workflows/daily.yml/badge.svg)](https://github.com/emrtunali/puant/actions/workflows/daily.yml)
+[![live dashboard](https://img.shields.io/badge/dashboard-live-2a78d6)](https://emrtunali.github.io/puant/)
+![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 **Day-ahead probabilistic forecasts for the Turkish electricity market, with the reasons behind
 them, tested the way they would have been used.**
 
@@ -9,7 +15,27 @@ day-ahead market closes at 12:30, Puant forecasts tomorrow's hourly **market cle
 each as a 10–50–90 % range. It then explains *why* tomorrow's price is high or low, lets you rerun it
 under different weather, and simulates the auction on EPİAŞ's real supply and demand curves.
 
+**[Open the live dashboard →](https://emrtunali.github.io/puant/)** · [Türkçe özet](#türkçe-özet)
+
 ![Dashboard: tomorrow's hourly price with its 80 % band, and the drivers of the price](docs/dashboard.png)
+
+**Contents:** [Results](#results) · [What the dashboard shows](#what-the-dashboard-shows) ·
+[How it works](#how-it-works) · [Limitations](#limitations) · [Running it](#running-it) ·
+[FAQ](#faq) · [Türkçe özet](#türkçe-özet) · [Citing](#citing)
+
+## Highlights
+
+- **Beats the official forecasts** in an honest backtest: TEİAŞ's load plan by 25 % and EPİAŞ's wind
+  forecast by 34 %. Price error is 28 % below the naive benchmark.
+- **Calibrated uncertainty:** the 80 % bands hold 76–80 % of hours out of sample.
+- **Explains itself** with exact Shapley values over driver groups (wind, demand, solar, gas,
+  hydro, calendar, recent prices).
+- **Simulates the auction** on EPİAŞ's published supply and demand curves, price cap included.
+- **Puts a value in lira on the forecast:** a battery trading on it captures 82 % of the
+  perfect-foresight profit.
+- **Runs itself:** GitHub Actions forecasts every morning and grades each forecast once the day is over.
+- No GPU, no paid data: public EPİAŞ and Open-Meteo data, scikit-learn, and a static page with no
+  dependencies.
 
 ## Results
 
@@ -135,7 +161,71 @@ src/puant/
 site/           static dashboard (no dependencies)
 ```
 
+## FAQ
+
+**Can I use this to trade?** It is a research and transparency project, not trading advice. The
+backtest is honest, but past accuracy does not guarantee future accuracy, and real trading has costs,
+collateral and imbalance risk that this ignores.
+
+**Why not deep learning?** With about 20,000 hourly test points and strong tabular features
+(calendar, official forecasts, weather, recent prices), gradient-boosted trees are accurate, fast to
+retrain every month on a CPU, and easy to explain. What made the difference was the information set,
+the capacity-free targets and calibration, not the model class.
+
+**Why are prices modelled as ratios?** Lira prices rose about tenfold between 2019 and 2022. In
+absolute terms, a model trained on 2020 prices would be badly off in 2025; ratios to the recent mean
+travel across inflation regimes.
+
+**How do I forecast another market?** Replace `epias.py` and `data.py` with a client for that
+market's data, adjust `calendar.py` and the provinces in `weather.py`; the rest is
+market-agnostic.
+
+**The daily job failed. What now?** Check the EPİAŞ secrets first; their login tickets expire, and a
+changed password must be updated in the repository secrets. A cold cache downloads the full history,
+and Open-Meteo's free quota may cut the weather short; the next run resumes from where it stopped.
+
+## Türkçe özet
+
+**Puant, Türkiye elektrik piyasası için gün öncesi olasılıksal tahmin sistemidir.** Her sabah gün
+öncesi piyasası (GÖP) 12:30'da kapanmadan önce, yarının saatlik **piyasa takas fiyatı (PTF)**,
+**elektrik tüketimi**, **rüzgâr** ve **güneş üretimi** ile şebekenin **karbon yoğunluğu** için
+%10–50–90 aralıklı tahmin üretir ve [canlı panoda](https://emrtunali.github.io/puant/) yayımlar.
+
+- **Dürüst geriye dönük test** (Temmuz 2024 – Ekim 2026): model her ay yalnızca geçmiş veriyle
+  yeniden eğitildi ve her gün bir gün önce yapılmış hava tahminiyle tahmin edildi. Sonuç: PTF
+  tahmininde naif kıyasa göre %28, tüketimde **TEİAŞ yük tahmin planına** göre %25, rüzgârda
+  **EPİAŞ rüzgâr tahminine** göre %34 daha düşük hata.
+- **"Yarın elektrik neden pahalı?"** Yarın ile normal bir gün arasındaki fiyat farkı rüzgâr, talep,
+  güneş, doğalgaz, hidro, takvim ve son günlerin fiyatı arasında Shapley değerleriyle bölüştürülür.
+- **Senaryo:** sıcaklık, rüzgâr ve doğalgaz fiyatı değişirse yarının fiyatı ne olur?
+- **Piyasa simülatörü:** EPİAŞ'ın yayımladığı gerçek arz-talep eğrileriyle "2.000 MW daha az rüzgâr
+  fiyatı ne kadar artırır?" sorusunun yanıtı.
+- **En ucuz ve en temiz saatler:** elektrikli araç şarjı, beyaz eşya ya da sanayi yükü için.
+- **Batarya arbitrajı:** 10 MWh'lik bir batarya bu tahminle kusursuz öngörü kazancının %82'sini
+  yakalardı (844 günde 15,4 milyon TL).
+- Veriler: EPİAŞ Şeffaflık Platformu, Open-Meteo, OpenStreetMap. Kod MIT lisanslıdır.
+
+Anahtar kelimeler: elektrik fiyat tahmini, PTF tahmini, gün öncesi piyasası, EPİAŞ şeffaflık
+platformu, elektrik tüketim tahmini, rüzgâr ve güneş üretim tahmini, karbon yoğunluğu, enerji
+piyasası makine öğrenmesi, batarya arbitrajı.
+
+## Citing
+
+If Puant is useful in your work, please cite it:
+
+```bibtex
+@software{tunali_puant_2026,
+  author = {Tunali, Emir},
+  title  = {Puant: day-ahead probabilistic forecasts for the Turkish electricity market},
+  year   = {2026},
+  url    = {https://github.com/emrtunali/puant}
+}
+```
+
+Issues and pull requests are welcome: bug reports, new benchmarks, other markets.
+
 ## Data and licences
 
-EPİAŞ Transparency Platform data is public. Weather data © Open-Meteo, CC BY 4.0 (ERA5:
-Copernicus Climate Change Service). Plant locations © OpenStreetMap contributors, ODbL.
+Code: [MIT](LICENSE). EPİAŞ Transparency Platform data is public. Weather data © Open-Meteo,
+CC BY 4.0 (ERA5: Copernicus Climate Change Service). Plant locations © OpenStreetMap contributors,
+ODbL.

@@ -160,6 +160,53 @@ function barChart(host, o) {
   renders.push(draw);
 }
 
+// ---------------------------------------------------------------- diverging stacked bars
+// groups: [{label, color, values}]; positives stack up from zero, negatives down; a tick marks the net
+function stackedBars(host, o) {
+  const draw = () => {
+    host.innerHTML = "";
+    const W = host.clientWidth || 600, H = o.height || 280, m = { l: 52, r: 8, t: 10, b: 26 };
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": o.aria || "" }, host);
+    const n = o.labels.length;
+    const up = o.labels.map((_, i) => sum(o.groups.map((g) => Math.max(0, g.values[i]))));
+    const dn = o.labels.map((_, i) => sum(o.groups.map((g) => Math.min(0, g.values[i]))));
+    const yt = niceTicks(Math.min(0, ...dn), Math.max(0, ...up), 4);
+    const Y = (v) => m.t + (1 - (v - yt.lo) / (yt.hi - yt.lo)) * (H - m.t - m.b);
+    const bw = (W - m.l - m.r) / n;
+    for (const v of yt.ticks) {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), style: `stroke:var(${v === 0 ? "--axis" : "--grid"})` }, svg);
+      el("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end" }, svg).textContent = (o.yfmt || fmt)(v);
+    }
+    const tip = tipBox(host);
+    for (let i = 0; i < n; i++) {
+      if (i % (W < 520 ? 6 : 3) === 0) el("text", { x: m.l + bw * (i + 0.5), y: H - 6, "text-anchor": "middle" }, svg).textContent = o.labels[i];
+      let pos = 0, neg = 0;
+      const x = m.l + bw * i + 1, w = Math.max(1, bw - 2);
+      for (const g of o.groups) {
+        const v = g.values[i];
+        if (!v) continue;
+        const a = v > 0 ? pos : neg, b = a + v;
+        if (v > 0) pos = b; else neg = b;
+        // 2px surface gap between stacked segments
+        el("rect", { x, y: Math.min(Y(a), Y(b)), width: w, height: Math.max(0.5, Math.abs(Y(b) - Y(a))), style: `fill:var(${g.color});stroke:var(--surface)`, "stroke-width": 1 }, svg);
+      }
+      const net = sum(o.groups.map((g) => g.values[i]));
+      el("line", { x1: x, x2: x + w, y1: Y(net), y2: Y(net), style: "stroke:var(--ink)", "stroke-width": 2 }, svg);
+      const hit = el("rect", { x: m.l + bw * i, y: m.t, width: bw, height: H - m.t - m.b, fill: "transparent" }, svg);
+      hit.addEventListener("pointermove", (ev) => {
+        const rr = svg.getBoundingClientRect();
+        const rows = o.groups.map((g) => ({ label: g.label, value: (g.values[i] >= 0 ? "+" : "−") + fmt(Math.abs(g.values[i])), color: g.color, v: g.values[i] }))
+          .sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+        rows.push({ label: "Net fark", value: (net >= 0 ? "+" : "−") + TL(Math.abs(net)) });
+        showTip(host, tip, ((m.l + bw * (i + 0.5)) * rr.width) / W, ev.clientY - rr.top, o.labels[i], rows);
+      });
+      hit.addEventListener("pointerleave", () => (tip.style.display = "none"));
+    }
+  };
+  draw();
+  renders.push(draw);
+}
+
 // ---------------------------------------------------------------- horizontal waterfall
 function waterfall(host, start, steps, end) {
   const draw = () => {
@@ -237,6 +284,15 @@ const hourTicks = (a, b, W) => (W < 520 ? [0, 6, 12, 18] : [0, 3, 6, 9, 12, 15, 
 const dayName = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
 const NAMES = { "same hour today": "Bugünün aynı saati", "same hour last week": "Geçen haftanın aynı saati", "TEİAŞ load plan": "TEİAŞ yük planı", "EPİAŞ wind forecast": "EPİAŞ rüzgâr tahmini", "same hour 2 days ago": "2 gün önceki aynı saat" };
 const UNITS = { price: "TL/MWh", consumption: "MWh", wind: "MWh", solar: "MWh", carbon: "g/kWh" };
+// consecutive hours as ranges: [10, 11, 12, 13] -> "10:00–14:00"
+const runs = (hs) => {
+  const out = [];
+  hs.slice().sort((a, b) => a - b).forEach((h) => {
+    const last = out[out.length - 1];
+    if (last && h === last[1] + 1) last[1] = h; else out.push([h, h]);
+  });
+  return out.map(([a, b]) => (a === b ? hh(a) : `${hh(a)}–${hh(b + 1)}`)).join(", ");
+};
 const TNAME = { price: "Fiyat", consumption: "Tüketim", wind: "Rüzgâr", solar: "Güneş", carbon: "Karbon" };
 
 async function main() {
@@ -255,6 +311,19 @@ async function main() {
     <div class="stat"><div class="label">Zirve (${hh(peakH)})</div><div class="value">${fmt(P.q50[peakH])}</div></div>
     <div class="stat"><div class="label">%80 aralık, günlük</div><div class="value">${fmt(mean(P.q10))} – ${fmt(mean(P.q90))}</div></div>`;
 
+  // tomorrow at a glance
+  const share = (a, b) => (sum(a) / sum(b)) * 100;
+  const bh0 = F.best_hours;
+  const kpi = (label, value, hint = "") => `<div class="kpi"><div class="label">${label}</div><div class="value">${value}</div>${hint ? `<div class="hint">${hint}</div>` : ""}</div>`;
+  $("#kpis").innerHTML = [
+    kpi("En ucuz saatler", runs(bh0.cheapest), "fiyata göre"),
+    kpi("Rüzgârın payı", "%" + fmt(share(F.wind.q50, F.consumption.q50)), fmt(sum(F.wind.q50) / 1000, 1) + " GWh"),
+    kpi("Güneşin payı (lisanslı)", "%" + fmt(share(F.solar.q50, F.consumption.q50), 1), fmt(sum(F.solar.q50) / 1000, 1) + " GWh"),
+    kpi("Tüketim", fmt(sum(F.consumption.q50) / 1000) + " GWh", "zirve " + fmt(Math.max(...F.consumption.q50) / 1000, 1) + " GW"),
+    kpi("Karbon yoğunluğu", fmt(mean(F.carbon.q50)) + " g/kWh", "en temiz " + hh(bh0.cleanest[0])),
+    kpi("Batarya kazancı", TL(F.battery.expected_tl), "10 MWh, beklenen"),
+  ].join("");
+
   lineChart($("#c-price"), {
     aria: "Yarının saatlik fiyat tahmini", zero: true, xTicks: hourTicks, xfmt: hh, tipTitle: (x) => hh(x),
     series: [
@@ -263,11 +332,58 @@ async function main() {
       { kind: "line", x: HOURS, y: today, color: "--muted", dash: true, label: "Bugün", width: 1.5 },
     ],
   });
+  $("#t-price").innerHTML = `<thead><tr><th>Saat</th><th>%10</th><th>Tahmin</th><th>%90</th><th>Bugün</th></tr></thead><tbody>` +
+    HOURS.map((h) => `<tr><td>${hh(h)}</td><td>${fmt(P.q10[h])}</td><td><b>${fmt(P.q50[h])}</b></td><td>${fmt(P.q90[h])}</td><td>${fmt(today[h])}</td></tr>`).join("") + "</tbody>";
+
+  // segmented toggles: show one pane, redraw charts that were hidden (they had no width)
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.for;
+    b.parentElement.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll(`[data-pane^="${k}-"]`).forEach((p) => (p.hidden = p.dataset.pane !== `${k}-${b.dataset.view}`));
+    if (k === "explain") $("#explain-title").textContent = b.dataset.view === "daily" ? "Günlük ortalama" : "Saat saat";
+    renders.forEach((r) => r());
+  }));
+
+  // yesterday: the last fully observed day of the record
+  const HP = Hs.price, byDay = {};
+  HP.time.forEach((t, i) => { const d = t.slice(0, 10); (byDay[d] = byDay[d] || []).push(i); });
+  const done = Object.keys(byDay).filter((d) => byDay[d].length === 24 && byDay[d].every((i) => HP.actual[i] != null));
+  if (done.length > 1) {
+    const d = done[done.length - 1], idx = byDay[d], prev = byDay[done[done.length - 2]];
+    const q50 = idx.map((i) => HP.q50[i]), act = idx.map((i) => HP.actual[i]);
+    const lo = idx.map((i) => HP.q10[i]), hi = idx.map((i) => HP.q90[i]);
+    const naive = prev.map((i) => HP.actual[i]);
+    const mae = mean(q50.map((v, k) => Math.abs(v - act[k]))), nmae = mean(naive.map((v, k) => Math.abs(v - act[k])));
+    const inside = act.filter((v, k) => v >= lo[k] && v <= hi[k]).length;
+    const live = idx.some((i) => HP.live[i]);
+    $("#dun-sub").textContent = `${dayName(d)} için ${live ? "canlı tahmin" : "geriye dönük testteki tahmin"} ve gerçekleşen PTF. Her gün bu karşılaştırma karneye eklenir.`;
+    $("#dun-hero").innerHTML = `<div class="stat"><div class="label">Puant ortalama hata</div><div class="value">${TL(mae)}</div></div>
+      <div class="stat"><div class="label">"Dünün fiyatı" kıyası</div><div class="value">${TL(nmae)}</div></div>
+      <div class="stat"><div class="label">%80 aralıkta kalan saat</div><div class="value">${inside} / 24</div></div>
+      <div class="stat"><div class="label">Gerçekleşen ortalama</div><div class="value">${TL(mean(act))}</div></div>`;
+    lineChart($("#c-dun"), {
+      aria: "Dünün tahmini ve gerçekleşen fiyat", height: 220, zero: true, xTicks: hourTicks, xfmt: hh, tipTitle: (x) => hh(x),
+      series: [
+        { kind: "line", x: HOURS, y: q50, color: "--s1", label: "Puant", width: 2 },
+        { kind: "band", x: HOURS, lo, hi, label: "%80 aralık" },
+        { kind: "line", x: HOURS, y: act, color: "--s2", label: "Gerçekleşen", width: 2 },
+      ],
+    });
+  } else {
+    $("#dun").hidden = true;
+  }
 
   // why
   const groups = E.groups.filter((g) => Math.abs(g.daily) >= 0.5);
   $("#explain-sub").textContent = `Normal bir gün (son 28 günün aynı saatleri) ${TL(E.normal)}/MWh olurdu. Yarının farkı sürücülere bölündü; ${groups[0].daily >= 0 ? "en çok artıran" : "en çok etkileyen"}: ${groups[0].label.toLowerCase()}. Kırmızı fiyatı artırır, mavi düşürür.`;
   waterfall($("#c-explain"), { value: E.normal }, groups.map((g) => ({ label: g.label, value: g.daily })), { value: E.forecast });
+  // hourly: the five largest groups by hourly magnitude in fixed slot order, the rest as "Diğer"
+  const ranked = E.groups.slice().sort((a, b) => sum(b.hourly.map(Math.abs)) - sum(a.hourly.map(Math.abs)));
+  const top = ranked.slice(0, 5), rest = ranked.slice(5);
+  const hg = top.map((g, k) => ({ label: g.label, color: "--c" + (k + 1), values: g.hourly }));
+  if (rest.length) hg.push({ label: "Diğer", color: "--muted", values: HOURS.map((h) => sum(rest.map((g) => g.hourly[h]))) });
+  $("#lg-explain-h").innerHTML = hg.map((g) => `<span><i style="background:var(${g.color});height:10px"></i>${g.label}</span>`).join("") + `<span><i style="background:var(--ink)"></i>Net fark</span>`;
+  stackedBars($("#c-explain-h"), { aria: "Saatlik sürücü katkıları", labels: HOURS.map(hh), groups: hg, yfmt: (v) => fmt(v) });
 
   // scenarios
   const T = [-4, -2, 0, 2, 4], Wm = [0.5, 0.75, 1, 1.25, 1.5], G = [0.8, 1, 1.2];
@@ -280,6 +396,23 @@ async function main() {
     $("#o-gas").textContent = g === 1 ? "aynı" : (g > 1 ? "+" : "−") + Math.abs(Math.round((g - 1) * 100)) + " %";
     const s = F.scenarios.find((x) => x.temp === t && x.wind === w && x.gas === g);
     const d = s.mean - base.mean;
+    // heatmap at the chosen gas price: rows warm → cold, columns calm → windy; diverging around zero
+    const cells = F.scenarios.filter((x) => x.gas === g), span0 = Math.max(1, ...cells.map((x) => Math.abs(x.mean - base.mean)));
+    let gh = `<div></div>` + Wm.map((w2) => `<div class="h">${w2 === 1 ? "tahmin" : (w2 > 1 ? "+" : "−") + Math.abs(Math.round((w2 - 1) * 100)) + "%"}</div>`).join("");
+    for (const t2 of T.slice().reverse()) {
+      gh += `<div class="r">${t2 > 0 ? "+" : t2 < 0 ? "−" : ""}${Math.abs(t2)} °C</div>`;
+      for (const w2 of Wm) {
+        const c = cells.find((x) => x.temp === t2 && x.wind === w2), dd = c.mean - base.mean;
+        const pct = Math.round((Math.abs(dd) / span0) * 70);
+        const bg = Math.abs(dd) < 0.5 ? "var(--chip)" : `color-mix(in oklab, var(${dd > 0 ? "--up" : "--down"}) ${pct}%, var(--chip))`;
+        gh += `<button type="button" data-t="${T.indexOf(t2)}" data-w="${Wm.indexOf(w2)}" class="${t2 === t && w2 === w ? "sel" : ""}" style="background:${bg}" title="${t2} °C, rüzgâr ×${w2}: ${TL(c.mean)}">${dd >= 0 ? "+" : "−"}${fmt(Math.abs(dd))}</button>`;
+      }
+    }
+    gh += `<div></div><div class="axis">Rüzgâr →</div>`;
+    $("#scen-grid").innerHTML = gh;
+    $("#scen-grid").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      $("#s-temp").value = b.dataset.t; $("#s-wind").value = b.dataset.w; updScen();
+    }));
     $("#scen-hero").innerHTML = `<div><div class="stat label">Senaryoda günlük ortalama</div><div class="big" style="font-size:34px">${fmt(s.mean)}<span class="unit">TL/MWh</span></div></div>
       <div class="stat"><div class="label">Temel tahmine göre</div><div class="value ${d > 0.5 ? "delta-up" : d < -0.5 ? "delta-down" : ""}">${d >= 0 ? "+" : "−"}${fmt(Math.abs(d))} TL (${d >= 0 ? "+" : "−"}${fmt(Math.abs((d / base.mean) * 100), 1)} %)</div></div>`;
     drop(scenHost);
@@ -421,7 +554,14 @@ async function main() {
   $("#hist-target").addEventListener("change", updHist);
   updHist();
 
-  $("#made").textContent = "Tahmin " + new Date(F.made).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" }) + " tarihinde üretildi";
+  // highlight the section in view in the sticky menu
+  const links = [...document.querySelectorAll("nav a")];
+  const io = new IntersectionObserver((es) => es.forEach((e) => {
+    if (e.isIntersecting) links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + e.target.id));
+  }), { rootMargin: "-40% 0px -55% 0px" });
+  links.forEach((a) => { const s = document.querySelector(a.getAttribute("href")); if (s) io.observe(s); });
+
+  $("#made").textContent ="Tahmin " + new Date(F.made).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" }) + " tarihinde üretildi";
 }
 
 // theme toggle: OS setting by default; the choice is remembered per browser

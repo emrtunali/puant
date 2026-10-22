@@ -18,7 +18,8 @@ HALF_DAYS_FIXED = {(10, 28)}  # the afternoon before Republic Day
 
 def holiday_table(years: range) -> pd.DataFrame:
     """One row per day: holiday, religious holiday, half day (afternoon off), bridge day."""
-    tr = holidays.Turkey(years=list(years))
+    # names are matched below, so pin the language (a LANGUAGE env var would translate them)
+    tr = holidays.Turkey(years=list(years), language="tr")
     days = pd.date_range(date(years.start, 1, 1), date(years.stop - 1, 12, 31), freq="D")
     rows = []
     for d in days:
